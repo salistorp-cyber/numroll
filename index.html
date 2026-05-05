@@ -33,7 +33,7 @@ body{
 .mono{font-family:'JetBrains Mono',monospace}
 
 /* header */
-.header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;padding-top:calc(env(safe-area-inset-top, 16px) + 10px);border-bottom:1px solid rgba(255,255,255,.06)}
+.header{display:flex;justify-content:space-between;align-items:center;padding:max(16px,calc(env(safe-area-inset-top,0px) + 12px)) 20px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
 .logo{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:18px;letter-spacing:3px;background:linear-gradient(135deg,#00e676,#00b0ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .nav{display:flex;gap:4px}
 .nav button{background:rgba(255,255,255,.05);border:none;border-radius:10px;width:40px;height:40px;font-size:18px;cursor:pointer;transition:all .2s}
@@ -228,7 +228,7 @@ body{
 <script>
 // ── State ──
 const STORAGE_KEY = "numroll-data-v2";
-const DEFAULT_CFG = { target:50, min:1, max:100, direction:"up", adjustAmount:1, adjustPeriod:"day", adjustThreshold:50 };
+const DEFAULT_CFG = { target:50, min:1, max:100, direction:"up", adjustAmount:1, rollsBeforeRaise:1 };
 
 let data = { trackers: [], activeId: null };
 let currentView = "roll";
@@ -320,15 +320,24 @@ function renderPicker() {
   const list = document.getElementById('picker-list');
   list.innerHTML = data.trackers.map(t => `
     <div class="picker-row ${t.id===data.activeId?'active':''}">
-      <button class="picker-name-btn" onclick="switchTracker('${t.id}')">
+      <button class="picker-name-btn" data-id="${t.id}" data-action="switch">
         ${t.id===data.activeId?'<span class="active-mark">●</span>':''}
         ${esc(t.name)}
         <span class="picker-count">${t.history.length} rolls</span>
       </button>
-      <button class="picker-action" onclick="startRename('${t.id}','${esc(t.name)}')" title="Rename">✏️</button>
-      <button class="picker-action" onclick="confirmDeleteTracker('${t.id}','${esc(t.name)}')" title="Delete">🗑️</button>
+      <button class="picker-action" data-id="${t.id}" data-action="rename" title="Rename">✏️</button>
+      <button class="picker-action" data-id="${t.id}" data-action="delete" title="Delete">🗑️</button>
     </div>
   `).join('');
+  list.onclick = e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    if (action==='switch') switchTracker(id);
+    else if (action==='rename') startRename(id);
+    else if (action==='delete') confirmDeleteTracker(id);
+  };
   document.getElementById('new-input-row').classList.add('hidden');
   document.getElementById('add-tracker-btn').classList.remove('hidden');
 }
@@ -341,16 +350,31 @@ function switchTracker(id) {
   saveData(); closePicker(); renderAll();
 }
 
-function startRename(id, name) {
+function startRename(id) {
+  const t = data.trackers.find(t=>t.id===id);
+  if (!t) return;
   const list = document.getElementById('picker-list');
-  const row = [...list.children].find(r => r.querySelector(`[onclick*="${id}"]`));
+  const row = [...list.children].find(r => r.querySelector(`[data-id="${id}"]`));
   if (!row) return;
-  row.innerHTML = `<div class="rename-row">
-    <input class="rename-input" id="rename-input" value="${name}" onkeydown="if(event.key==='Enter')doRename('${id}')">
-    <button class="rename-save" onclick="doRename('${id}')">✓</button>
-    <button class="rename-cancel" onclick="renderPicker()">✕</button>
-  </div>`;
-  document.getElementById('rename-input').focus();
+  const inp = document.createElement('input');
+  inp.className = 'rename-input';
+  inp.id = 'rename-input';
+  inp.value = t.name;
+  inp.addEventListener('keydown', e => { if (e.key==='Enter') doRename(id); });
+  const save = document.createElement('button');
+  save.className = 'rename-save';
+  save.textContent = '✓';
+  save.onclick = () => doRename(id);
+  const cancel = document.createElement('button');
+  cancel.className = 'rename-cancel';
+  cancel.textContent = '✕';
+  cancel.onclick = renderPicker;
+  const wrap = document.createElement('div');
+  wrap.className = 'rename-row';
+  wrap.append(inp, save, cancel);
+  row.innerHTML = '';
+  row.appendChild(wrap);
+  inp.focus();
 }
 
 function doRename(id) {
@@ -361,16 +385,28 @@ function doRename(id) {
   saveData(); renderPicker(); renderAll();
 }
 
-function confirmDeleteTracker(id, name) {
+function confirmDeleteTracker(id) {
+  const t = data.trackers.find(t=>t.id===id);
+  if (!t) return;
   const list = document.getElementById('picker-list');
-  const rows = [...list.children];
-  const row = rows.find(r => r.querySelector(`[onclick*="confirmDeleteTracker('${id}'"]`));
+  const row = [...list.children].find(r => r.querySelector(`[data-id="${id}"]`));
   if (!row) return;
-  row.innerHTML = `<div class="delete-confirm">
-    <span class="delete-text">Delete "${name}"?</span>
-    <button class="delete-yes" onclick="deleteTracker('${id}')">Yes</button>
-    <button class="delete-no" onclick="renderPicker()">No</button>
-  </div>`;
+  const label = document.createElement('span');
+  label.className = 'delete-text';
+  label.textContent = `Delete "${t.name}"?`;
+  const yes = document.createElement('button');
+  yes.className = 'delete-yes';
+  yes.textContent = 'Yes';
+  yes.onclick = () => deleteTracker(id);
+  const no = document.createElement('button');
+  no.className = 'delete-no';
+  no.textContent = 'No';
+  no.onclick = renderPicker;
+  const wrap = document.createElement('div');
+  wrap.className = 'delete-confirm';
+  wrap.append(label, yes, no);
+  row.innerHTML = '';
+  row.appendChild(wrap);
 }
 
 function deleteTracker(id) {
@@ -437,10 +473,10 @@ function doRoll() {
 }
 
 function checkAdjust(rolls, c) {
-  const periodRolls = filterByPeriod(rolls, c.adjustPeriod).filter(r=>r.target===c.target);
-  if (periodRolls.length < 3) return c.target;
-  const {rate} = getStats(periodRolls);
-  if (rate >= c.adjustThreshold) {
+  const n = c.rollsBeforeRaise ?? 1;
+  const recent = rolls.filter(r => r.target === c.target).slice(0, n);
+  if (recent.length < n) return c.target;
+  if (recent.every(r => r.hit)) {
     return c.direction==="up" ? Math.min(c.max, c.target+c.adjustAmount) : Math.max(c.min, c.target-c.adjustAmount);
   }
   return c.target;
@@ -476,8 +512,9 @@ function renderRoll() {
   rateEl.textContent = all.rate+'%';
   rateEl.style.color = all.rate>=50?'#00e676':'#ff1744';
 
+  const n = c.rollsBeforeRaise ?? 1;
   document.getElementById('adjust-info').innerHTML =
-    `Target adjusts <b>${c.direction==="up"?"↑":"↓"}${c.adjustAmount}</b> when hit rate ≥ ${c.adjustThreshold}% per ${c.adjustPeriod}`;
+    `Target adjusts <b>${c.direction==="up"?"↑":"↓"}${c.adjustAmount}</b> after ${n} consecutive hit${n===1?'':'s'}`;
 }
 
 // ── Render History ──
@@ -547,13 +584,17 @@ function renderSettings() {
         <button class="toggle-btn ${c.direction==='down'?'active':''}" onclick="updateCfg('direction','down')">↓ Down (easier)</button>
       </div></div>
     <div class="field"><label>Adjust by</label>
-      <input type="number" value="${c.adjustAmount}" min="1" onchange="updateCfg('adjustAmount',Math.max(1,+this.value))"></div>
-    <div class="field"><label>Evaluation period</label>
-      <div class="toggle-row">
-        ${['day','week','month'].map(p=>`<button class="toggle-btn ${c.adjustPeriod===p?'active':''}" onclick="updateCfg('adjustPeriod','${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</button>`).join('')}
+      <div class="target-control">
+        <button class="pm-btn" onclick="updateCfg('adjustAmount',Math.max(1,cfg().adjustAmount-1))">−</button>
+        <input type="number" value="${c.adjustAmount}" min="1" onchange="updateCfg('adjustAmount',Math.max(1,+this.value))">
+        <button class="pm-btn" onclick="updateCfg('adjustAmount',cfg().adjustAmount+1)">+</button>
       </div></div>
-    <div class="field"><label>Hit rate threshold (%)</label>
-      <input type="number" value="${c.adjustThreshold}" min="1" max="100" onchange="updateCfg('adjustThreshold',Math.max(1,Math.min(100,+this.value)))"></div>
+    <div class="field"><label>Rolls before raise</label>
+      <div class="target-control">
+        <button class="pm-btn" onclick="updateCfg('rollsBeforeRaise',Math.max(1,cfg().rollsBeforeRaise-1))">−</button>
+        <input type="number" value="${c.rollsBeforeRaise??1}" min="1" onchange="updateCfg('rollsBeforeRaise',Math.max(1,+this.value))">
+        <button class="pm-btn" onclick="updateCfg('rollsBeforeRaise',(cfg().rollsBeforeRaise??1)+1)">+</button>
+      </div></div>
     <div class="divider"></div>
     <button class="reset-btn" onclick="updateCfg('target',50)">Reset Target to 50</button>
     <button class="reset-btn danger" onclick="clearHistory()">Clear History</button>
