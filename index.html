@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NumRoll">
+<meta name="theme-color" content="#0a0a0f">
+<title>NumRoll</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+html,body{
+  background:#0a0a0f;
+  color:#e0e0e0;
+  font-family:'Outfit',sans-serif;
+  min-height:100vh;
+  min-height:100dvh;
+  overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent;
+}
+body{
+  max-width:480px;
+  margin:0 auto;
+  padding-bottom:env(safe-area-inset-bottom,0);
+  background:linear-gradient(145deg,#0a0a0f 0%,#12121f 50%,#0d0d18 100%);
+}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* header */
+.header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.06)}
+.logo{font-family:'JetBrains Mono',monospace;font-weight:800;font-size:18px;letter-spacing:3px;background:linear-gradient(135deg,#00e676,#00b0ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav{display:flex;gap:4px}
+.nav button{background:rgba(255,255,255,.05);border:none;border-radius:10px;width:40px;height:40px;font-size:18px;cursor:pointer;transition:all .2s}
+.nav button.active{background:rgba(0,230,118,.15);box-shadow:0 0 12px rgba(0,230,118,.2)}
+
+/* switcher */
+.switcher-bar{padding:8px 20px}
+.switcher-btn{width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:#fff;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;transition:all .2s}
+.switcher-dot{width:8px;height:8px;border-radius:50%;background:#00e676;box-shadow:0 0 6px rgba(0,230,118,.5);flex-shrink:0}
+.switcher-name{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.switcher-arrow{font-size:10px;color:#666}
+
+/* picker overlay */
+.picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding-top:100px}
+.picker-panel{width:90%;max-width:400px;background:#16162a;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:16px;max-height:60vh;overflow-y:auto}
+.picker-header{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#888;letter-spacing:2px;margin-bottom:12px;text-transform:uppercase}
+.picker-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.picker-row.active{background:rgba(0,230,118,.05);border-radius:8px;padding:4px 8px;margin:0 -8px}
+.picker-name-btn{flex:1;background:none;border:none;color:#ddd;font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;text-align:left;cursor:pointer;padding:8px 4px;display:flex;align-items:center;gap:8px}
+.active-mark{color:#00e676;font-size:10px}
+.picker-count{margin-left:auto;font-size:11px;color:#555;font-family:'JetBrains Mono',monospace}
+.picker-action{background:none;border:none;font-size:14px;cursor:pointer;padding:6px 4px;opacity:.5;transition:opacity .2s}
+.picker-action:hover{opacity:1}
+.add-tracker-btn{width:100%;padding:12px;margin-top:10px;border-radius:8px;border:1px dashed rgba(0,230,118,.3);background:rgba(0,230,118,.05);color:#00e676;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px}
+.rename-row,.new-input-row{display:flex;gap:6px;flex:1;align-items:center;padding:4px 0}
+.new-input-row{margin-top:10px}
+.rename-input{flex:1;padding:8px 10px;border-radius:6px;border:1px solid rgba(0,230,118,.3);background:rgba(0,0,0,.3);color:#fff;font-size:14px;font-family:'Outfit',sans-serif;outline:none}
+.rename-save{background:rgba(0,230,118,.2);border:none;color:#00e676;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:16px}
+.rename-cancel{background:rgba(255,255,255,.05);border:none;color:#888;width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:14px}
+.delete-confirm{display:flex;gap:8px;flex:1;align-items:center;padding:6px 0}
+.delete-text{flex:1;font-size:13px;color:#ff1744;font-weight:500}
+.delete-yes{background:rgba(255,23,68,.2);border:none;color:#ff1744;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700}
+.delete-no{background:rgba(255,255,255,.05);border:none;color:#888;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px}
+
+/* roll view */
+.roll-view{padding:20px 20px 0;text-align:center}
+.target-bar{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px}
+.target-label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:#888;font-weight:600}
+.target-num{font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:800;color:#fff}
+.range-label{font-family:'JetBrains Mono',monospace;font-size:11px;color:#555}
+
+.roll-circle{
+  width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,#1a1a2e 0%,#0f0f1a 100%);
+  border:2px solid rgba(255,255,255,.08);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 24px;cursor:pointer;transition:all .3s ease;
+  box-shadow:0 8px 32px rgba(0,0,0,.4),inset 0 1px 1px rgba(255,255,255,.05);
+  user-select:none;-webkit-user-select:none;
+}
+.roll-circle.hit{border-color:#00e676;box-shadow:0 0 40px rgba(0,230,118,.25),inset 0 0 20px rgba(0,230,118,.05)}
+.roll-circle.miss{border-color:#ff1744;box-shadow:0 0 40px rgba(255,23,68,.25),inset 0 0 20px rgba(255,23,68,.05)}
+.roll-circle.spinning{animation:spin .6s cubic-bezier(.5,0,.5,1)}
+.roll-number{font-family:'JetBrains Mono',monospace;font-size:64px;font-weight:800;color:#fff;line-height:1}
+.roll-instruction{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:2px;color:#555;margin-top:8px}
+
+.result-badge{
+  display:inline-block;padding:8px 20px;border-radius:8px;
+  font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#000;margin-bottom:24px;
+  animation:popIn .3s ease;
+}
+
+.quick-stats{display:flex;justify-content:center;gap:32px;margin-bottom:20px}
+.qs-item{text-align:center}
+.qs-val{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;color:#fff}
+.qs-label{font-size:11px;color:#666;letter-spacing:1px;margin-top:2px}
+
+.adjust-info{
+  font-size:12px;color:#555;padding:12px 16px;
+  background:rgba(255,255,255,.03);border-radius:8px;
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* history */
+.hist-view{padding:16px 20px}
+.period-tabs{display:flex;gap:6px;margin-bottom:20px}
+.period-btn{flex:1;padding:8px 0;border:1px solid rgba(255,255,255,.08);background:transparent;color:#888;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;font-weight:600;transition:all .2s}
+.period-btn.active{background:rgba(0,230,118,.12);color:#00e676;border-color:rgba(0,230,118,.3)}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.stat-card{background:rgba(255,255,255,.03);border-radius:10px;padding:14px 12px;text-align:center;border:1px solid rgba(255,255,255,.04)}
+.stat-num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:800;color:#fff}
+.stat-lbl{font-size:11px;color:#666;margin-top:4px;letter-spacing:1px}
+
+.bar-viz{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:20px;background:rgba(255,255,255,.03)}
+.bar-viz .bar{height:100%;transition:width .4s ease}
+
+.log-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#888;letter-spacing:1px}
+.clear-btn{background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.3);color:#ff1744;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace}
+.log-list{max-height:340px;overflow-y:auto}
+.empty-log{text-align:center;color:#444;padding:30px;font-family:'JetBrains Mono',monospace;font-size:13px}
+.log-row{padding:10px 12px;margin-bottom:6px;background:rgba(255,255,255,.02);border-radius:8px}
+.log-main{display:flex;align-items:center;gap:8px}
+.log-result{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800}
+.log-vs{font-size:11px;color:#555}
+.log-target{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#888}
+.log-badge{margin-left:auto;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:1px}
+.log-time{font-size:10px;color:#444;margin-top:4px}
+
+/* settings */
+.settings-view{padding:20px}
+.settings-title{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:800;margin-bottom:20px;letter-spacing:1px;color:#fff}
+.sub-title{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;margin-bottom:14px;color:#00e676;letter-spacing:1px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;color:#888;margin-bottom:6px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+.field input[type=number]{width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#fff;font-size:16px;font-family:'JetBrains Mono',monospace;outline:none}
+.target-control{display:flex;gap:8px;align-items:center}
+.target-control input{text-align:center;flex:1}
+.pm-btn{width:44px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#fff;font-size:22px;cursor:pointer;font-family:'JetBrains Mono',monospace;display:flex;align-items:center;justify-content:center}
+.toggle-row{display:flex;gap:8px}
+.toggle-btn{flex:1;padding:10px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#888;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;font-weight:600;transition:all .2s}
+.toggle-btn.active{background:rgba(0,230,118,.12);color:#00e676;border-color:rgba(0,230,118,.3)}
+.divider{height:1px;background:rgba(255,255,255,.06);margin:20px 0}
+.reset-btn{width:100%;padding:12px;border-radius:8px;border:none;background:rgba(0,176,255,.15);color:#00b0ff;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;margin-bottom:8px}
+.reset-btn.danger{background:rgba(255,23,68,.15);color:#ff1744}
+.install-note{margin-top:24px;padding:14px 16px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:12px;color:#888;line-height:1.6;font-family:'JetBrains Mono',monospace}
+
+.hidden{display:none!important}
+
+@keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">NUMROLL</div>
+  <div class="nav">
+    <button id="nav-roll" class="active" onclick="switchView('roll')">🎲</button>
+    <button id="nav-history" onclick="switchView('history')">📊</button>
+    <button id="nav-settings" onclick="switchView('settings')">⚙️</button>
+  </div>
+</div>
+
+<div class="switcher-bar">
+  <button class="switcher-btn" onclick="togglePicker()">
+    <span class="switcher-dot"></span>
+    <span class="switcher-name" id="switcher-name">My Tracker</span>
+    <span class="switcher-arrow" id="switcher-arrow">▼</span>
+  </button>
+</div>
+
+<div id="picker-overlay" class="picker-overlay hidden" onclick="closePicker()">
+  <div class="picker-panel" onclick="event.stopPropagation()">
+    <div class="picker-header">Your Trackers</div>
+    <div id="picker-list"></div>
+    <div id="new-input-row" class="new-input-row hidden">
+      <input id="new-name-input" class="rename-input" placeholder="Tracker name…"
+        onkeydown="if(event.key==='Enter')confirmNewTracker()">
+      <button class="rename-save" onclick="confirmNewTracker()">✓</button>
+      <button class="rename-cancel" onclick="cancelNewTracker()">✕</button>
+    </div>
+    <button id="add-tracker-btn" class="add-tracker-btn" onclick="showNewTrackerInput()">+ New Tracker</button>
+  </div>
+</div>
+
+<!-- ROLL VIEW -->
+<div id="view-roll" class="roll-view">
+  <div class="target-bar">
+    <span class="target-label">TARGET</span>
+    <span class="target-num" id="target-num">50</span>
+    <span class="range-label" id="range-label">1–100</span>
+  </div>
+  <div class="roll-circle" id="roll-circle" onclick="doRoll()">
+    <div class="roll-number" id="roll-number">?</div>
+    <div class="roll-instruction" id="roll-instruction">TAP TO ROLL</div>
+  </div>
+  <div id="result-badge" class="result-badge hidden"></div>
+  <div class="quick-stats">
+    <div class="qs-item"><div class="qs-val" id="qs-total">0</div><div class="qs-label">Rolls</div></div>
+    <div class="qs-item"><div class="qs-val" id="qs-hits">0</div><div class="qs-label">Hits</div></div>
+    <div class="qs-item"><div class="qs-val" id="qs-rate">0%</div><div class="qs-label">Rate</div></div>
+  </div>
+  <div class="adjust-info" id="adjust-info"></div>
+</div>
+
+<!-- HISTORY VIEW -->
+<div id="view-history" class="hist-view hidden">
+  <div class="period-tabs" id="period-tabs"></div>
+  <div class="stats-grid" id="stats-grid"></div>
+  <div class="bar-viz" id="bar-viz"></div>
+  <div class="log-header">
+    <span>Roll Log</span>
+    <button class="clear-btn" onclick="clearHistory()">Clear All</button>
+  </div>
+  <div class="log-list" id="log-list"></div>
+</div>
+
+<!-- SETTINGS VIEW -->
+<div id="view-settings" class="settings-view hidden"></div>
+
+<script>
+// ── State ──
+const STORAGE_KEY = "numroll-data-v2";
+const DEFAULT_CFG = { target:50, min:1, max:100, direction:"up", adjustAmount:1, adjustPeriod:"day", adjustThreshold:50 };
+
+let data = { trackers: [], activeId: null };
+let currentView = "roll";
+let statsPeriod = "day";
+let rolling = false;
+let lastRoll = null;
+let showResult = false;
+let animInterval = null;
+
+// ── Helpers ──
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOfWeek = d => { const s = startOfDay(d); s.setDate(s.getDate()-s.getDay()); return s; };
+const startOfMonth = d => new Date(d.getFullYear(), d.getMonth(), 1);
+
+function filterByPeriod(rolls, period) {
+  if (period==="all") return rolls;
+  const n = new Date();
+  let cutoff;
+  if (period==="day") cutoff=startOfDay(n);
+  else if (period==="week") cutoff=startOfWeek(n);
+  else cutoff=startOfMonth(n);
+  return rolls.filter(r => new Date(r.ts)>=cutoff);
+}
+
+function getStats(rolls) {
+  if (!rolls.length) return {total:0,hits:0,misses:0,rate:0};
+  const hits = rolls.filter(r=>r.hit).length;
+  return {total:rolls.length, hits, misses:rolls.length-hits, rate:Math.round(hits/rolls.length*100)};
+}
+
+function secureRandom(min,max) {
+  const range=max-min+1, limit=Math.floor(0x100000000/range)*range;
+  let raw;
+  do { raw=crypto.getRandomValues(new Uint32Array(1))[0]; } while(raw>=limit);
+  return min+(raw%range);
+}
+
+function makeTracker(name) {
+  return { id:uid(), name, cfg:{...DEFAULT_CFG}, history:[] };
+}
+
+// ── Storage ──
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { const d = JSON.parse(raw); if (d && d.trackers && d.trackers.length) return d; }
+  } catch(e) {}
+  const init = { trackers:[makeTracker("My Tracker")], activeId:null };
+  init.activeId = init.trackers[0].id;
+  return init;
+}
+
+function saveData() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+// ── Active tracker ──
+function tracker() { return data.trackers.find(t=>t.id===data.activeId) || data.trackers[0]; }
+function cfg() { return tracker()?.cfg || DEFAULT_CFG; }
+function history() { return tracker()?.history || []; }
+
+// ── View switching ──
+function switchView(v) {
+  currentView = v;
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-'+v).classList.add('active');
+  document.getElementById('view-roll').classList.toggle('hidden', v!=='roll');
+  document.getElementById('view-history').classList.toggle('hidden', v!=='history');
+  document.getElementById('view-settings').classList.toggle('hidden', v!=='settings');
+  if (v==='roll') renderRoll();
+  else if (v==='history') renderHistory();
+  else renderSettings();
+}
+
+// ── Picker ──
+function togglePicker() {
+  const el = document.getElementById('picker-overlay');
+  el.classList.toggle('hidden');
+  document.getElementById('switcher-arrow').textContent = el.classList.contains('hidden') ? '▼' : '▲';
+  if (!el.classList.contains('hidden')) renderPicker();
+}
+function closePicker() {
+  document.getElementById('picker-overlay').classList.add('hidden');
+  document.getElementById('switcher-arrow').textContent = '▼';
+}
+
+function renderPicker() {
+  const list = document.getElementById('picker-list');
+  list.innerHTML = data.trackers.map(t => `
+    <div class="picker-row ${t.id===data.activeId?'active':''}">
+      <button class="picker-name-btn" onclick="switchTracker('${t.id}')">
+        ${t.id===data.activeId?'<span class="active-mark">●</span>':''}
+        ${esc(t.name)}
+        <span class="picker-count">${t.history.length} rolls</span>
+      </button>
+      <button class="picker-action" onclick="startRename('${t.id}','${esc(t.name)}')" title="Rename">✏️</button>
+      <button class="picker-action" onclick="confirmDeleteTracker('${t.id}','${esc(t.name)}')" title="Delete">🗑️</button>
+    </div>
+  `).join('');
+  document.getElementById('new-input-row').classList.add('hidden');
+  document.getElementById('add-tracker-btn').classList.remove('hidden');
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function switchTracker(id) {
+  data.activeId = id;
+  lastRoll = null; showResult = false;
+  saveData(); closePicker(); renderAll();
+}
+
+function startRename(id, name) {
+  const list = document.getElementById('picker-list');
+  const row = [...list.children].find(r => r.querySelector(`[onclick*="${id}"]`));
+  if (!row) return;
+  row.innerHTML = `<div class="rename-row">
+    <input class="rename-input" id="rename-input" value="${name}" onkeydown="if(event.key==='Enter')doRename('${id}')">
+    <button class="rename-save" onclick="doRename('${id}')">✓</button>
+    <button class="rename-cancel" onclick="renderPicker()">✕</button>
+  </div>`;
+  document.getElementById('rename-input').focus();
+}
+
+function doRename(id) {
+  const val = document.getElementById('rename-input').value.trim();
+  if (!val) return;
+  const t = data.trackers.find(t=>t.id===id);
+  if (t) t.name = val;
+  saveData(); renderPicker(); renderAll();
+}
+
+function confirmDeleteTracker(id, name) {
+  const list = document.getElementById('picker-list');
+  const rows = [...list.children];
+  const row = rows.find(r => r.querySelector(`[onclick*="confirmDeleteTracker('${id}'"]`));
+  if (!row) return;
+  row.innerHTML = `<div class="delete-confirm">
+    <span class="delete-text">Delete "${name}"?</span>
+    <button class="delete-yes" onclick="deleteTracker('${id}')">Yes</button>
+    <button class="delete-no" onclick="renderPicker()">No</button>
+  </div>`;
+}
+
+function deleteTracker(id) {
+  data.trackers = data.trackers.filter(t=>t.id!==id);
+  if (!data.trackers.length) { const t=makeTracker("My Tracker"); data.trackers=[t]; data.activeId=t.id; }
+  else if (data.activeId===id) data.activeId=data.trackers[0].id;
+  lastRoll=null; showResult=false;
+  saveData(); renderPicker(); renderAll();
+}
+
+function showNewTrackerInput() {
+  document.getElementById('new-input-row').classList.remove('hidden');
+  document.getElementById('add-tracker-btn').classList.add('hidden');
+  document.getElementById('new-name-input').value = '';
+  document.getElementById('new-name-input').focus();
+}
+function cancelNewTracker() {
+  document.getElementById('new-input-row').classList.add('hidden');
+  document.getElementById('add-tracker-btn').classList.remove('hidden');
+}
+function confirmNewTracker() {
+  const val = document.getElementById('new-name-input').value.trim();
+  if (!val) return;
+  const t = makeTracker(val);
+  data.trackers.push(t);
+  data.activeId = t.id;
+  lastRoll=null; showResult=false;
+  saveData(); closePicker(); renderAll();
+}
+
+// ── Rolling ──
+function doRoll() {
+  if (rolling) return;
+  const c = cfg();
+  showResult = false;
+  rolling = true;
+  const circle = document.getElementById('roll-circle');
+  circle.className = 'roll-circle spinning';
+  document.getElementById('roll-instruction').textContent = 'ROLLING…';
+  document.getElementById('result-badge').classList.add('hidden');
+
+  animInterval = setInterval(() => {
+    document.getElementById('roll-number').textContent = Math.floor(Math.random()*100);
+  }, 50);
+
+  setTimeout(() => {
+    clearInterval(animInterval);
+    const result = secureRandom(c.min, c.max);
+    const hit = result >= c.target;
+    const entry = { result, target:c.target, hit, ts:new Date().toISOString() };
+    tracker().history.unshift(entry);
+    lastRoll = entry;
+    rolling = false;
+    showResult = true;
+    saveData();
+    renderRoll();
+
+    // check adjust
+    const newTarget = checkAdjust(tracker().history, c);
+    if (newTarget !== c.target) {
+      setTimeout(() => { tracker().cfg.target = newTarget; saveData(); renderRoll(); }, 800);
+    }
+  }, 600);
+}
+
+function checkAdjust(rolls, c) {
+  const periodRolls = filterByPeriod(rolls, c.adjustPeriod).filter(r=>r.target===c.target);
+  if (periodRolls.length < 3) return c.target;
+  const {rate} = getStats(periodRolls);
+  if (rate >= c.adjustThreshold) {
+    return c.direction==="up" ? Math.min(c.max, c.target+c.adjustAmount) : Math.max(c.min, c.target-c.adjustAmount);
+  }
+  return c.target;
+}
+
+// ── Render Roll ──
+function renderRoll() {
+  const c = cfg(), h = history();
+  document.getElementById('switcher-name').textContent = tracker().name;
+  document.getElementById('target-num').textContent = c.target;
+  document.getElementById('range-label').textContent = c.min+'–'+c.max;
+
+  const circle = document.getElementById('roll-circle');
+  if (showResult && lastRoll) {
+    circle.className = 'roll-circle ' + (lastRoll.hit?'hit':'miss');
+    document.getElementById('roll-number').textContent = lastRoll.result;
+    document.getElementById('roll-instruction').textContent = '';
+    const badge = document.getElementById('result-badge');
+    badge.classList.remove('hidden');
+    badge.style.background = lastRoll.hit?'#00e676':'#ff1744';
+    badge.textContent = lastRoll.hit ? `HIT! ${lastRoll.result} ≥ ${lastRoll.target}` : `MISS — ${lastRoll.result} < ${lastRoll.target}`;
+  } else if (!rolling) {
+    circle.className = 'roll-circle';
+    document.getElementById('roll-number').textContent = '?';
+    document.getElementById('roll-instruction').textContent = 'TAP TO ROLL';
+    document.getElementById('result-badge').classList.add('hidden');
+  }
+
+  const all = getStats(h);
+  document.getElementById('qs-total').textContent = all.total;
+  document.getElementById('qs-hits').textContent = all.hits;
+  const rateEl = document.getElementById('qs-rate');
+  rateEl.textContent = all.rate+'%';
+  rateEl.style.color = all.rate>=50?'#00e676':'#ff1744';
+
+  document.getElementById('adjust-info').innerHTML =
+    `Target adjusts <b>${c.direction==="up"?"↑":"↓"}${c.adjustAmount}</b> when hit rate ≥ ${c.adjustThreshold}% per ${c.adjustPeriod}`;
+}
+
+// ── Render History ──
+function renderHistory() {
+  const h = history();
+  // period tabs
+  const tabs = document.getElementById('period-tabs');
+  tabs.innerHTML = ['day','week','month','all'].map(p =>
+    `<button class="period-btn ${statsPeriod===p?'active':''}" onclick="setStatsPeriod('${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</button>`
+  ).join('');
+
+  const pRolls = filterByPeriod(h, statsPeriod);
+  const s = getStats(pRolls);
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${s.total}</div><div class="stat-lbl">Total Rolls</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#00e676">${s.hits}</div><div class="stat-lbl">Hits</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:#ff1744">${s.misses}</div><div class="stat-lbl">Misses</div></div>
+    <div class="stat-card"><div class="stat-num">${s.rate}%</div><div class="stat-lbl">Hit Rate</div></div>
+  `;
+
+  const hPct = s.total ? (s.hits/s.total)*100 : 0;
+  document.getElementById('bar-viz').innerHTML =
+    `<div class="bar" style="width:${hPct}%;background:#00e676"></div><div class="bar" style="width:${100-hPct}%;background:#ff1744"></div>`;
+
+  const logList = document.getElementById('log-list');
+  if (!pRolls.length) {
+    logList.innerHTML = '<div class="empty-log">No rolls for this period</div>';
+  } else {
+    logList.innerHTML = pRolls.slice(0,80).map(r => `
+      <div class="log-row" style="border-left:3px solid ${r.hit?'#00e676':'#ff1744'}">
+        <div class="log-main">
+          <span class="log-result" style="color:${r.hit?'#00e676':'#ff1744'}">${r.result}</span>
+          <span class="log-vs">vs</span>
+          <span class="log-target">${r.target}</span>
+          <span class="log-badge" style="background:${r.hit?'rgba(0,230,118,.15)':'rgba(255,23,68,.15)'};color:${r.hit?'#00e676':'#ff1744'}">${r.hit?'HIT':'MISS'}</span>
+        </div>
+        <div class="log-time">${new Date(r.ts).toLocaleString()}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function setStatsPeriod(p) { statsPeriod=p; renderHistory(); }
+function clearHistory() { tracker().history=[]; lastRoll=null; showResult=false; saveData(); renderAll(); }
+
+// ── Render Settings ──
+function renderSettings() {
+  const c = cfg(), t = tracker();
+  document.getElementById('view-settings').innerHTML = `
+    <h2 class="settings-title">Settings — ${esc(t.name)}</h2>
+    <div class="field"><label>Range Minimum</label>
+      <input type="number" value="${c.min}" onchange="updateCfg('min',+this.value)"></div>
+    <div class="field"><label>Range Maximum</label>
+      <input type="number" value="${c.max}" onchange="updateCfg('max',+this.value)"></div>
+    <div class="field"><label>Target Number</label>
+      <div class="target-control">
+        <button class="pm-btn" onclick="updateCfg('target',Math.max(cfg().min,cfg().target-1))">−</button>
+        <input type="number" value="${c.target}" onchange="updateCfg('target',+this.value)">
+        <button class="pm-btn" onclick="updateCfg('target',Math.min(cfg().max,cfg().target+1))">+</button>
+      </div></div>
+    <div class="divider"></div>
+    <h3 class="sub-title">Auto-Adjustment</h3>
+    <div class="field"><label>On hits, adjust target…</label>
+      <div class="toggle-row">
+        <button class="toggle-btn ${c.direction==='up'?'active':''}" onclick="updateCfg('direction','up')">↑ Up (harder)</button>
+        <button class="toggle-btn ${c.direction==='down'?'active':''}" onclick="updateCfg('direction','down')">↓ Down (easier)</button>
+      </div></div>
+    <div class="field"><label>Adjust by</label>
+      <input type="number" value="${c.adjustAmount}" min="1" onchange="updateCfg('adjustAmount',Math.max(1,+this.value))"></div>
+    <div class="field"><label>Evaluation period</label>
+      <div class="toggle-row">
+        ${['day','week','month'].map(p=>`<button class="toggle-btn ${c.adjustPeriod===p?'active':''}" onclick="updateCfg('adjustPeriod','${p}')">${p.charAt(0).toUpperCase()+p.slice(1)}</button>`).join('')}
+      </div></div>
+    <div class="field"><label>Hit rate threshold (%)</label>
+      <input type="number" value="${c.adjustThreshold}" min="1" max="100" onchange="updateCfg('adjustThreshold',Math.max(1,Math.min(100,+this.value)))"></div>
+    <div class="divider"></div>
+    <button class="reset-btn" onclick="updateCfg('target',50)">Reset Target to 50</button>
+    <button class="reset-btn danger" onclick="clearHistory()">Clear History</button>
+    <div class="install-note"><b>Install on iPhone / iPad:</b><br>Open in Safari → Share → "Add to Home Screen"</div>
+  `;
+}
+
+function updateCfg(key, val) {
+  tracker().cfg[key] = val;
+  saveData(); renderAll();
+}
+
+// ── Render All ──
+function renderAll() {
+  document.getElementById('switcher-name').textContent = tracker().name;
+  if (currentView==='roll') renderRoll();
+  else if (currentView==='history') renderHistory();
+  else renderSettings();
+}
+
+// ── Init ──
+data = loadData();
+if (!data.activeId) data.activeId = data.trackers[0].id;
+saveData();
+renderAll();
+
+// Register SW
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
