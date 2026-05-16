@@ -12,6 +12,10 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
 <style>
+:root{
+  --font-sans:'Outfit',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
 *{box-sizing:border-box;margin:0;padding:0}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
@@ -151,6 +155,25 @@ body{
 .reset-btn.danger{background:rgba(255,23,68,.15);color:#ff1744}
 .install-note{margin-top:24px;padding:14px 16px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);font-size:12px;color:#888;line-height:1.6;font-family:'JetBrains Mono',monospace}
 
+/* habits */
+.habits-view{padding:16px 20px}
+.balance-card{text-align:center;padding:22px 20px 14px;background:rgba(255,255,255,.03);border-radius:14px;border:1px solid rgba(255,255,255,.06);margin-bottom:20px;transition:border-color .2s}
+.balance-card:hover{border-color:rgba(255,255,255,.12)}
+.balance-label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:3px;color:#555;margin-bottom:8px}
+.balance-amt{font-family:'JetBrains Mono',monospace;font-size:52px;font-weight:800;line-height:1}
+.balance-today{font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:8px}
+.habit-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.03);margin-bottom:8px;transition:all .15s}
+.habit-check{width:32px;height:32px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;user-select:none;-webkit-user-select:none}
+.habit-del{background:none;border:none;cursor:pointer;font-size:14px;opacity:.2;transition:opacity .2s;padding:4px;color:#fff;flex-shrink:0}
+.habit-del:hover{opacity:.8}
+.habit-section-hd{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:2px;color:#555;font-weight:700;margin:20px 0 10px;text-transform:uppercase}
+.habit-log-row{padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.02);margin-bottom:5px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;border-left:3px solid transparent}
+
+/* mandarin */
+.man-view{padding:16px 20px}
+.man-import-area{width:100%;min-height:110px;font-size:12px;font-family:'JetBrains Mono',monospace;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.3);color:#e0e0e0;resize:vertical;box-sizing:border-box;outline:none}
+.man-toast{position:fixed;top:72px;right:16px;background:rgba(0,230,118,.15);color:#00e676;font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid rgba(0,230,118,.3);z-index:200;pointer-events:none;font-family:'JetBrains Mono',monospace}
+
 .hidden{display:none!important}
 
 @keyframes popIn{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
@@ -164,6 +187,8 @@ body{
   <div class="nav">
     <button id="nav-roll" class="active" onclick="switchView('roll')">🎲</button>
     <button id="nav-history" onclick="switchView('history')">📊</button>
+    <button id="nav-mandarin" onclick="switchView('mandarin')" title="Mandarin">🀄</button>
+    <button id="nav-habits" onclick="switchView('habits')" title="Habit $">💰</button>
     <button id="nav-settings" onclick="switchView('settings')">⚙️</button>
   </div>
 </div>
@@ -187,6 +212,13 @@ body{
       <button class="rename-cancel" onclick="cancelNewTracker()">✕</button>
     </div>
     <button id="add-tracker-btn" class="add-tracker-btn" onclick="showNewTrackerInput()">+ New Tracker</button>
+  </div>
+</div>
+
+<div id="man-picker-overlay" class="picker-overlay hidden" onclick="closeManPicker()">
+  <div class="picker-panel" onclick="event.stopPropagation()">
+    <div class="picker-header">Select Week</div>
+    <div id="man-picker-list"></div>
   </div>
 </div>
 
@@ -217,13 +249,23 @@ body{
   <div class="bar-viz" id="bar-viz"></div>
   <div class="log-header">
     <span>Roll Log</span>
-    <button class="clear-btn" onclick="clearHistory()">Clear All</button>
+    <div style="display:flex;gap:6px">
+      <button class="clear-btn" style="background:rgba(0,176,255,.1);border-color:rgba(0,176,255,.3);color:#00b0ff" onclick="exportHistory()">Export CSV</button>
+      <button class="clear-btn" onclick="clearHistory()">Clear All</button>
+    </div>
   </div>
   <div class="log-list" id="log-list"></div>
 </div>
 
 <!-- SETTINGS VIEW -->
 <div id="view-settings" class="settings-view hidden"></div>
+
+<!-- HABITS VIEW -->
+<div id="view-habits" class="habits-view hidden"></div>
+
+<!-- MANDARIN VIEW -->
+<div id="view-mandarin" class="man-view hidden"></div>
+<div id="man-toast" class="man-toast hidden"></div>
 
 <script>
 // ── State ──
@@ -294,14 +336,21 @@ function history() { return tracker()?.history || []; }
 // ── View switching ──
 function switchView(v) {
   currentView = v;
+  closePicker();
+  closeManPicker();
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('nav-'+v).classList.add('active');
   document.getElementById('view-roll').classList.toggle('hidden', v!=='roll');
   document.getElementById('view-history').classList.toggle('hidden', v!=='history');
   document.getElementById('view-settings').classList.toggle('hidden', v!=='settings');
+  document.getElementById('view-habits').classList.toggle('hidden', v!=='habits');
+  document.getElementById('view-mandarin').classList.toggle('hidden', v!=='mandarin');
+  updateSwitcherBar(v);
   if (v==='roll') renderRoll();
   else if (v==='history') renderHistory();
-  else renderSettings();
+  else if (v==='settings') renderSettings();
+  else if (v==='habits') renderHabits();
+  else if (v==='mandarin') renderMandarin();
 }
 
 // ── Picker ──
@@ -449,7 +498,7 @@ function doRoll() {
   document.getElementById('result-badge').classList.add('hidden');
 
   animInterval = setInterval(() => {
-    document.getElementById('roll-number').textContent = Math.floor(Math.random()*100);
+    document.getElementById('roll-number').textContent = Math.floor(Math.random() * (c.max - c.min + 1)) + c.min;
   }, 50);
 
   setTimeout(() => {
@@ -561,6 +610,25 @@ function renderHistory() {
 function setStatsPeriod(p) { statsPeriod=p; renderHistory(); }
 function clearHistory() { tracker().history=[]; lastRoll=null; showResult=false; saveData(); renderAll(); }
 
+function exportHistory() {
+  const t = tracker();
+  const rows = t.history;
+  if (!rows.length) return;
+  const header = "timestamp,result,target,hit\n";
+  const body = rows.map(r =>
+    `${r.ts},${r.result},${r.target},${r.hit ? 'HIT' : 'MISS'}`
+  ).join('\n');
+  const blob = new Blob([header + body], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0, 10);
+  const name = t.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  a.href = url;
+  a.download = `numroll_${name}_${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Render Settings ──
 function renderSettings() {
   const c = cfg(), t = tracker();
@@ -607,19 +675,651 @@ function updateCfg(key, val) {
   saveData(); renderAll();
 }
 
+// ── Switcher bar ──
+function updateSwitcherBar(v) {
+  const bar    = document.querySelector('.switcher-bar');
+  const dot    = bar.querySelector('.switcher-dot');
+  const nameEl = document.getElementById('switcher-name');
+  const btn    = bar.querySelector('.switcher-btn');
+
+  if (v === 'habits') { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+
+  if (v === 'mandarin') {
+    dot.style.background  = '#6ab0ff';
+    dot.style.boxShadow   = '0 0 6px rgba(106,176,255,.5)';
+    const cw = manWeeks[manWeekIdx];
+    nameEl.textContent = cw ? `Week ${cw.week}: ${cw.title || ''}` : 'No weeks loaded';
+    btn.onclick = toggleManPicker;
+  } else {
+    dot.style.background  = '#00e676';
+    dot.style.boxShadow   = '0 0 6px rgba(0,230,118,.5)';
+    nameEl.textContent = tracker().name;
+    btn.onclick = togglePicker;
+  }
+}
+
+// ── Mandarin week picker ──
+function toggleManPicker() {
+  const el = document.getElementById('man-picker-overlay');
+  el.classList.toggle('hidden');
+  document.getElementById('switcher-arrow').textContent = el.classList.contains('hidden') ? '▼' : '▲';
+  if (!el.classList.contains('hidden')) renderManPicker();
+}
+
+function closeManPicker() {
+  const el = document.getElementById('man-picker-overlay');
+  if (el) el.classList.add('hidden');
+  const arrow = document.getElementById('switcher-arrow');
+  if (arrow) arrow.textContent = '▼';
+}
+
+function renderManPicker() {
+  const list = document.getElementById('man-picker-list');
+  if (!manWeeks.length) {
+    list.innerHTML = '<div style="color:#555;font-size:13px;font-family:\'JetBrains Mono\',monospace;padding:12px 0;text-align:center">No weeks loaded yet</div>';
+    return;
+  }
+  list.innerHTML = manWeeks.map((w, i) => {
+    const ph    = manWeekPhase(w.week);
+    const isAct = i === manWeekIdx;
+    const wDone = w.tasks && w.tasks.length && w.tasks.every(t => manChecked[t.id]);
+    return `<div class="picker-row ${isAct ? 'active' : ''}">
+      <button class="picker-name-btn" onclick="selectManWeek(${i})">
+        ${isAct ? '<span class="active-mark">●</span>' : ''}
+        <span style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+          <span style="font-size:11px;font-weight:700;padding:1px 8px;border-radius:10px;background:${ph.bg};color:${ph.color}">W${w.week}${wDone ? ' ✓' : ''}</span>
+          <span style="font-size:13px;font-family:'Outfit',sans-serif;font-weight:500">${esc(w.title || '')}</span>
+        </span>
+        <span class="picker-count">${w.tasks ? w.tasks.length : 0} tasks</span>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function selectManWeek(i) {
+  manGoWeek(i);
+  closeManPicker();
+}
+
 // ── Render All ──
 function renderAll() {
-  document.getElementById('switcher-name').textContent = tracker().name;
+  updateSwitcherBar(currentView);
   if (currentView==='roll') renderRoll();
   else if (currentView==='history') renderHistory();
+  else if (currentView==='habits') renderHabits();
+  else if (currentView==='mandarin') renderMandarin();
   else renderSettings();
+}
+
+// ── Habit $ Tracker ──
+const HABIT_KEY = "numroll-habits-v1";
+const HABIT_LOG_DAYS   = 365; // 1 year — ~150 KB max, trivial
+const HABIT_DAILY_DAYS = 90;  // keep per-day check states for 90 days (past editing)
+
+let habitData = { habits:[], initialBalance:0, todayChecked:{}, lastDate:'', log:[], dailyChecked:{} };
+let habitShowAdd     = false;
+let habitFormType    = 'do';
+let habitEditBalance = false;
+let habitShowPast    = false;
+let habitPastDate    = '';
+let habitPastChecked = {};
+
+function fmtMoney(n) { return (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2); }
+function habitTodayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+
+// Balance is always computed from initialBalance + log sum so past edits propagate correctly
+function habitBalance() {
+  let b = habitData.initialBalance || 0;
+  for (const e of habitData.log) b += (e.delta || 0);
+  return Math.round(b * 100) / 100;
+}
+
+function loadHabits() {
+  try {
+    const r = localStorage.getItem(HABIT_KEY);
+    if (r) {
+      const d = JSON.parse(r);
+      habitData = { ...habitData, ...d };
+      // Migrate: old data stored running total in 'balance', no 'initialBalance'
+      if (typeof habitData.initialBalance === 'undefined') {
+        let logSum = 0;
+        for (const e of habitData.log) logSum += (e.delta || 0);
+        habitData.initialBalance = Math.round(((habitData.balance || 0) - logSum) * 100) / 100;
+      }
+      if (!habitData.dailyChecked) habitData.dailyChecked = {};
+    }
+  } catch {}
+  processHabitRollover();
+}
+
+function saveHabits() {
+  try { localStorage.setItem(HABIT_KEY, JSON.stringify(habitData)); } catch {}
+}
+
+// Generate log entries for one day given a checked-state map
+function habitDayEntries(date, checked) {
+  const entries = [];
+  for (const h of habitData.habits) {
+    const done = !!checked[h.id];
+    let delta = 0, reason = '';
+    if (h.type === 'do') {
+      reason = done ? `✓ Done: ${h.name}` : `✗ Missed: ${h.name}`;
+      if (!done) delta = -h.amount;
+    } else {
+      reason = done ? `✗ Broke: ${h.name}` : `✓ Kept: ${h.name}`;
+      delta = done ? -h.amount : +h.amount;
+    }
+    entries.push({ date, reason, delta });
+  }
+  return entries;
+}
+
+function habitTrimLog() {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - HABIT_LOG_DAYS);
+  const cs = cutoff.toISOString().slice(0,10);
+  habitData.log = habitData.log.filter(e => e.date >= cs);
+  const dc = new Date(); dc.setDate(dc.getDate() - HABIT_DAILY_DAYS);
+  const ds = dc.toISOString().slice(0,10);
+  Object.keys(habitData.dailyChecked).forEach(d => { if (d < ds) delete habitData.dailyChecked[d]; });
+}
+
+function processHabitRollover() {
+  const today = habitTodayStr();
+  if (habitData.lastDate === today) return;
+
+  if (habitData.lastDate && habitData.habits.length) {
+    // Build ordered list: lastDate first, then any gap days up to yesterday
+    const datesToProcess = [];
+    let cursor = new Date(habitData.lastDate);
+    const todayDate = new Date(today);
+    while (cursor < todayDate) {
+      datesToProcess.push(cursor.toISOString().slice(0,10));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    // Process each: lastDate uses todayChecked, gap days use {} (missed)
+    for (const date of datesToProcess) {
+      const checked = date === habitData.lastDate ? habitData.todayChecked : {};
+      habitData.dailyChecked[date] = { ...checked };
+      const entries = habitDayEntries(date, checked);
+      // Insert before existing entries for the same date, newest date first
+      habitData.log.unshift(...entries.reverse()); // reverse so they unshift in correct order
+    }
+  }
+
+  habitTrimLog();
+  habitData.todayChecked = {};
+  habitData.lastDate = today;
+  saveHabits();
+}
+
+function habitTodayDelta() {
+  let d = 0;
+  for (const h of habitData.habits) {
+    const checked = !!habitData.todayChecked[h.id];
+    if      (h.type==='do'   && !checked) d -= h.amount;
+    else if (h.type==='dont' &&  checked) d -= h.amount;
+    else if (h.type==='dont' && !checked) d += h.amount;
+  }
+  return Math.round(d * 100) / 100;
+}
+
+function habitToggle(id) { habitData.todayChecked[id]=!habitData.todayChecked[id]; saveHabits(); renderHabits(); }
+
+function habitDelete(id) {
+  const row = document.getElementById('hrow-'+id);
+  if (row && !row.dataset.confirmDelete) {
+    row.dataset.confirmDelete = '1';
+    const del = row.querySelector('.habit-del');
+    if (del) { del.textContent='Confirm?'; del.style.opacity='1'; del.style.color='#ff1744'; }
+    setTimeout(() => { if(row){delete row.dataset.confirmDelete;} if(del){del.textContent='🗑️';del.style.opacity='.2';del.style.color='#fff';} }, 2000);
+    return;
+  }
+  habitData.habits = habitData.habits.filter(h=>h.id!==id);
+  delete habitData.todayChecked[id];
+  saveHabits(); renderHabits();
+}
+
+function habitFormTypeSelect(t) { habitFormType=t; renderHabits(); }
+
+function habitAddConfirm() {
+  const name = (document.getElementById('habit-name-inp')?.value||'').trim();
+  const amt  = parseFloat(document.getElementById('habit-amt-inp')?.value);
+  if (!name || isNaN(amt) || amt < 0) return;
+  habitData.habits.push({ id:uid(), name, type:habitFormType, amount:amt });
+  habitShowAdd = false;
+  saveHabits(); renderHabits();
+}
+
+function habitSetBalance() {
+  const val = parseFloat(document.getElementById('habit-bal-inp')?.value);
+  if (!isNaN(val)) habitData.initialBalance = Math.round(val * 100) / 100;
+  habitEditBalance = false;
+  saveHabits(); renderHabits();
+}
+
+// Past-day editing
+function habitOpenPast() {
+  habitShowPast = true;
+  const d = new Date(); d.setDate(d.getDate()-1);
+  habitPastDate = d.toISOString().slice(0,10);
+  habitPastChecked = { ...(habitData.dailyChecked[habitPastDate] || {}) };
+  renderHabits();
+}
+function habitPastNav(offset) {
+  const d = new Date(habitPastDate); d.setDate(d.getDate()+offset);
+  const s = d.toISOString().slice(0,10);
+  const min = new Date(); min.setDate(min.getDate()-HABIT_DAILY_DAYS);
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+  if (s < min.toISOString().slice(0,10) || s > yesterday.toISOString().slice(0,10)) return;
+  habitPastDate = s;
+  habitPastChecked = { ...(habitData.dailyChecked[habitPastDate] || {}) };
+  renderHabits();
+}
+function habitPastToggle(id) { habitPastChecked[id]=!habitPastChecked[id]; renderHabits(); }
+function habitSavePastDay() {
+  // Remove old log entries for this date, insert fresh ones
+  habitData.log = habitData.log.filter(e => e.date !== habitPastDate);
+  const entries = habitDayEntries(habitPastDate, habitPastChecked);
+  habitData.log.push(...entries);
+  habitData.log.sort((a,b) => b.date < a.date ? -1 : b.date > a.date ? 1 : 0);
+  habitTrimLog();
+  habitData.dailyChecked[habitPastDate] = { ...habitPastChecked };
+  habitShowPast = false;
+  saveHabits(); renderHabits();
+}
+
+function exportHabitLog() {
+  if (!habitData.log.length) return;
+  const header = 'date,delta,reason\n';
+  const body = habitData.log
+    .map(e => `${e.date},${(e.delta||0).toFixed(2)},"${(e.reason||'').replace(/"/g,'""')}"`)
+    .join('\n');
+  const blob = new Blob([header+body], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `numroll_habits_${habitTodayStr()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderHabits() {
+  const el = document.getElementById('view-habits');
+  if (!el) return;
+  const base         = habitBalance();
+  const todayDelta   = habitTodayDelta();
+  const projBalance  = Math.round((base + todayDelta) * 100) / 100;
+  const balColor     = projBalance >= 0 ? '#00e676' : '#ff1744';
+  const deltaColor   = todayDelta  >= 0 ? '#00e676' : '#ff1744';
+  const deltaSign    = todayDelta  >= 0 ? '+' : '';
+
+  let html = '';
+
+  // ── Balance card ──
+  if (habitEditBalance) {
+    html += `<div class="balance-card">
+      <div class="balance-label">STARTING BALANCE</div>
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-top:10px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:28px;color:#888">$</span>
+        <input id="habit-bal-inp" type="number" step="0.01" value="${habitData.initialBalance}"
+          style="width:160px;padding:10px 12px;border-radius:8px;border:1px solid rgba(0,230,118,.4);background:rgba(0,0,0,.3);color:#fff;font-size:28px;font-family:'JetBrains Mono',monospace;font-weight:800;text-align:center;outline:none"
+          onkeydown="if(event.key==='Enter')habitSetBalance()">
+      </div>
+      <div style="font-size:11px;color:#555;font-family:'JetBrains Mono',monospace;margin-top:8px">Base value before any tracked days</div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+        <button onclick="habitSetBalance()" style="padding:7px 20px;font-size:12px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;border:none;background:#e0e0e0;color:#0a0a0f;font-weight:700;letter-spacing:.5px">SAVE</button>
+        <button onclick="habitEditBalance=false;renderHabits()" style="padding:7px 16px;font-size:12px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;border:1px solid rgba(255,255,255,.1);background:transparent;color:#888">Cancel</button>
+      </div>
+    </div>`;
+  } else {
+    html += `<div class="balance-card" onclick="habitEditBalance=true;renderHabits()" style="cursor:pointer">
+      <div class="balance-label">BALANCE</div>
+      <div class="balance-amt" style="color:${balColor}">${fmtMoney(projBalance)}</div>
+      ${habitData.habits.length ? `<div class="balance-today" style="color:${deltaColor}">${deltaSign}${fmtMoney(Math.abs(todayDelta))} today (pending)</div>` : ''}
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#2a2a3a;margin-top:8px;letter-spacing:1px">TAP TO EDIT STARTING BALANCE</div>
+    </div>`;
+  }
+
+  // ── Header row ──
+  html += `<div class="log-header" style="margin-bottom:10px">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#888;letter-spacing:1px">TODAY'S HABITS</span>
+    <button class="clear-btn" style="background:rgba(0,230,118,.1);border-color:rgba(0,230,118,.3);color:#00e676"
+      onclick="habitShowAdd=!habitShowAdd;if(habitShowAdd)habitShowPast=false;renderHabits()">${habitShowAdd ? '✕ Cancel' : '+ Add Habit'}</button>
+  </div>`;
+
+  // ── Add habit form ──
+  if (habitShowAdd) {
+    html += `<div style="margin-bottom:14px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)">
+      <div class="field"><label>Habit name</label>
+        <input id="habit-name-inp" type="text" placeholder="e.g. Do pushups every day"
+          style="width:100%;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#fff;font-size:15px;font-family:'Outfit',sans-serif;outline:none"
+          onkeydown="if(event.key==='Enter')habitAddConfirm()">
+      </div>
+      <div class="field"><label>Type</label>
+        <div class="toggle-row">
+          <button class="toggle-btn ${habitFormType==='do'?'active':''}" onclick="habitFormTypeSelect('do')">✓ DO this</button>
+          <button class="toggle-btn ${habitFormType==='dont'?'active':''}" onclick="habitFormTypeSelect('dont')">✗ DON'T do this</button>
+        </div>
+        <div style="font-size:11px;color:#555;margin-top:7px;font-family:'JetBrains Mono',monospace;line-height:1.6">
+          ${habitFormType==='do'
+            ? 'Check off when done. <span style="color:#ff1744">Miss a day → lose $.</span>'
+            : 'Check if you broke it. <span style="color:#ff1744">Broke it → lose $.</span> <span style="color:#00e676">Resisted → earn $.</span>'}
+        </div>
+      </div>
+      <div class="field"><label>$ per day</label>
+        <div class="target-control">
+          <span class="pm-btn" style="font-size:18px;color:#888;font-family:'JetBrains Mono',monospace;cursor:default;display:flex;align-items:center;justify-content:center">$</span>
+          <input id="habit-amt-inp" type="number" min="0" step="0.5" value="5" style="text-align:center;flex:1"
+            onkeydown="if(event.key==='Enter')habitAddConfirm()">
+          <button class="pm-btn" onclick="let i=document.getElementById('habit-amt-inp');i.value=Math.max(0,(+i.value||0)+1)">+</button>
+        </div>
+      </div>
+      <button onclick="habitAddConfirm()" style="width:100%;padding:11px;border-radius:8px;border:none;background:rgba(0,230,118,.15);color:#00e676;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:1px;margin-top:4px">ADD HABIT</button>
+    </div>`;
+  }
+
+  // ── Empty state ──
+  if (habitData.habits.length === 0 && !habitShowAdd) {
+    html += `<div style="text-align:center;padding:2.5rem 2rem;border:1px dashed rgba(255,255,255,.08);border-radius:12px">
+      <div style="font-size:32px;margin-bottom:.75rem">💰</div>
+      <div style="font-size:14px;font-weight:500;color:#e0e0e0;margin-bottom:6px">No habits yet</div>
+      <div style="font-size:13px;color:#888;margin-bottom:1.5rem">Add a DO habit (miss a day, lose $) or a DON'T habit (break it, lose $; resist, earn $).</div>
+      <button onclick="habitShowAdd=true;renderHabits()" style="padding:8px 22px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#e0e0e0">Add first habit →</button>
+    </div>`;
+  } else {
+    // ── Today's habit rows ──
+    for (const h of habitData.habits) {
+      const checked = !!habitData.todayChecked[h.id];
+      const isDo = h.type === 'do';
+      let checkBg, checkColor, checkText, rowBorder;
+      if (isDo) {
+        if (checked) { checkBg='#00e676'; checkColor='#0a0a0f'; checkText='✓'; rowBorder='rgba(0,230,118,.2)'; }
+        else         { checkBg='rgba(255,255,255,.05)'; checkColor='#444'; checkText=''; rowBorder='rgba(255,255,255,.06)'; }
+      } else {
+        if (checked) { checkBg='#ff1744'; checkColor='#fff'; checkText='✗'; rowBorder='rgba(255,23,68,.25)'; }
+        else         { checkBg='rgba(0,230,118,.07)'; checkColor='#00e676'; checkText='·'; rowBorder='rgba(0,230,118,.1)'; }
+      }
+      const badgeBg    = isDo ? 'rgba(0,176,255,.1)' : 'rgba(255,165,0,.1)';
+      const badgeColor = isDo ? '#00b0ff' : '#ffa040';
+      const note = isDo
+        ? `miss: <span style="color:#ff1744">-${fmtMoney(h.amount)}</span>`
+        : `break: <span style="color:#ff1744">-${fmtMoney(h.amount)}</span> · keep: <span style="color:#00e676">+${fmtMoney(h.amount)}</span>`;
+      html += `<div id="hrow-${esc(h.id)}" class="habit-row" style="border:1px solid ${rowBorder}">
+        <div class="habit-check" style="background:${checkBg};color:${checkColor};border:1px solid ${rowBorder}" onclick="habitToggle('${esc(h.id)}')">${checkText}</div>
+        <div style="flex:1;min-width:0;cursor:pointer" onclick="habitToggle('${esc(h.id)}')">
+          <div style="font-size:14px;font-weight:500;color:#e0e0e0">${esc(h.name)}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:${badgeBg};color:${badgeColor}">${isDo?'DO':"DON'T"}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#555">${note}</span>
+          </div>
+        </div>
+        <button class="habit-del" onclick="event.stopPropagation();habitDelete('${esc(h.id)}')">🗑️</button>
+      </div>`;
+    }
+  }
+
+  // ── Past day editor ──
+  if (!habitShowPast) {
+    if (habitData.log.length || habitData.habits.length) {
+      html += `<button onclick="habitOpenPast()" style="width:100%;padding:10px;margin-top:12px;border-radius:8px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#555;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;letter-spacing:.5px">✏️ Edit a past day</button>`;
+    }
+  } else {
+    const minPast = new Date(); minPast.setDate(minPast.getDate()-HABIT_DAILY_DAYS);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
+    const canPrev = habitPastDate > minPast.toISOString().slice(0,10);
+    const canNext = habitPastDate < yesterday.toISOString().slice(0,10);
+    html += `<div style="margin-top:14px;padding:14px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <button onclick="habitPastNav(-1)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:${canPrev?'rgba(255,255,255,.05)':'transparent'};color:${canPrev?'#e0e0e0':'#333'};cursor:${canPrev?'pointer':'default'};font-family:'JetBrains Mono',monospace;font-size:14px">←</button>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#e0e0e0">${habitPastDate}</span>
+        <button onclick="habitPastNav(1)" style="padding:6px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:${canNext?'rgba(255,255,255,.05)':'transparent'};color:${canNext?'#e0e0e0':'#333'};cursor:${canNext?'pointer':'default'};font-family:'JetBrains Mono',monospace;font-size:14px">→</button>
+      </div>
+      ${habitData.habits.length === 0 ? '<div style="font-size:13px;color:#555;text-align:center;padding:12px 0">No habits to edit</div>' : ''}`;
+    for (const h of habitData.habits) {
+      const checked = !!habitPastChecked[h.id];
+      const isDo = h.type === 'do';
+      let checkBg, checkColor, checkText, rowBorder;
+      if (isDo) {
+        if (checked) { checkBg='#00e676'; checkColor='#0a0a0f'; checkText='✓'; rowBorder='rgba(0,230,118,.2)'; }
+        else         { checkBg='rgba(255,255,255,.05)'; checkColor='#444'; checkText=''; rowBorder='rgba(255,255,255,.06)'; }
+      } else {
+        if (checked) { checkBg='#ff1744'; checkColor='#fff'; checkText='✗'; rowBorder='rgba(255,23,68,.25)'; }
+        else         { checkBg='rgba(0,230,118,.07)'; checkColor='#00e676'; checkText='·'; rowBorder='rgba(0,230,118,.1)'; }
+      }
+      html += `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ${rowBorder};margin-bottom:8px;cursor:pointer" onclick="habitPastToggle('${esc(h.id)}')">
+        <div style="width:28px;height:28px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:${checkBg};color:${checkColor};border:1px solid ${rowBorder};user-select:none;-webkit-user-select:none">${checkText}</div>
+        <span style="font-size:13px;font-weight:500;color:#e0e0e0">${esc(h.name)}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:4px;background:${isDo?'rgba(0,176,255,.1)':'rgba(255,165,0,.1)'};color:${isDo?'#00b0ff':'#ffa040'};margin-left:auto">${isDo?'DO':"DON'T"}</span>
+      </div>`;
+    }
+    html += `<div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="habitSavePastDay()" style="flex:1;padding:9px;border-radius:8px;border:none;background:rgba(0,230,118,.15);color:#00e676;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.5px">SAVE CHANGES</button>
+        <button onclick="habitShowPast=false;renderHabits()" style="padding:9px 16px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:transparent;color:#888;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer">Cancel</button>
+      </div>
+    </div>`;
+  }
+
+  // ── Transaction log ──
+  if (habitData.log.length) {
+    html += `<div class="log-header" style="margin:20px 0 10px">
+      <span class="habit-section-hd" style="margin:0">Transaction Log</span>
+      <button class="clear-btn" style="background:rgba(0,176,255,.1);border-color:rgba(0,176,255,.3);color:#00b0ff" onclick="exportHabitLog()">Export CSV</button>
+    </div>`;
+    // Group by date for readability
+    let lastLogDate = '';
+    for (const entry of habitData.log.slice(0, 60)) {
+      if (entry.date !== lastLogDate) {
+        if (lastLogDate) html += `<div style="height:6px"></div>`;
+        html += `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#444;margin-bottom:4px;letter-spacing:.5px">${entry.date}</div>`;
+        lastLogDate = entry.date;
+      }
+      const dc = entry.delta > 0 ? '#00e676' : entry.delta < 0 ? '#ff1744' : '#555';
+      const dt = entry.delta > 0 ? '+'+fmtMoney(entry.delta) : entry.delta < 0 ? fmtMoney(entry.delta) : '—';
+      html += `<div class="habit-log-row" style="border-left-color:${dc}">
+        <div style="font-size:12px;color:#888">${esc(entry.reason)}</div>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${dc};white-space:nowrap">${dt}</span>
+      </div>`;
+    }
+    if (habitData.log.length > 60) {
+      html += `<div style="text-align:center;font-size:11px;color:#444;font-family:'JetBrains Mono',monospace;padding:8px 0">${habitData.log.length - 60} older entries — export CSV for full history</div>`;
+    }
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Mandarin Tracker ──
+const MAN_WEEKS_KEY = "mandarin-weeks-v1";
+const MAN_PROG_KEY  = "mandarin-prog-v1";
+let manWeeks = [];
+let manWeekIdx = 0;
+let manChecked = {};
+let manShowImport = false;
+let manImportText = "";
+let manTab = "tracker";
+let manToastTimer = null;
+
+const MAN_PHASES_OVERVIEW = [
+  { label:"Phase 1", months:"Months 1–3",  bg:"rgba(30,80,160,.25)",  color:"#6ab0ff", title:"Foundations",      desc:"Pinyin · 4 tones · 200 words · 50 characters",         milestone:"HSK 1 mock · Introduce yourself in Mandarin" },
+  { label:"Phase 2", months:"Months 4–6",  bg:"rgba(20,100,80,.25)",  color:"#4ddb9e", title:"Core building",    desc:"Grammar patterns · 500 words · 150 characters",        milestone:"HSK 2 mock · First iTalki session · Basic small talk" },
+  { label:"Phase 3", months:"Months 7–12", bg:"rgba(120,80,20,.25)",  color:"#f0a850", title:"Intermediate",     desc:"Business vocab · 900 words · 350 characters",          milestone:"HSK 3 mock · Participate in business calls" },
+  { label:"Phase 4", months:"Months 13–24",bg:"rgba(140,50,80,.25)",  color:"#f08aaa", title:"Business fluency", desc:"Professional Mandarin · 2500 words · 800+ characters",  milestone:"HSK 4 exam · Lead a full meeting in Mandarin" },
+];
+
+function manWeekPhase(w) {
+  if (w <= 12) return { bg:"rgba(30,80,160,.25)",  color:"#6ab0ff", label:"Phase 1 · Foundations" };
+  if (w <= 24) return { bg:"rgba(20,100,80,.25)",  color:"#4ddb9e", label:"Phase 2 · Core building" };
+  if (w <= 48) return { bg:"rgba(120,80,20,.25)",  color:"#f0a850", label:"Phase 3 · Intermediate" };
+  return              { bg:"rgba(140,50,80,.25)",  color:"#f08aaa", label:"Phase 4 · Business fluency" };
+}
+
+function loadMandarin() {
+  try { const r = localStorage.getItem(MAN_WEEKS_KEY); if (r) manWeeks = JSON.parse(r); } catch {}
+  try {
+    const r = localStorage.getItem(MAN_PROG_KEY);
+    if (r) { const p = JSON.parse(r); manChecked = p.checked||{}; manWeekIdx = p.weekIdx||0; }
+  } catch {}
+  fetch('./weeks.json?_=' + Date.now())
+    .then(r => r.ok ? r.json() : null)
+    .then(arr => {
+      if (!arr) return;
+      manMergeWeeks(Array.isArray(arr) ? arr : [arr]);
+      if (currentView === 'mandarin') { renderMandarin(); updateSwitcherBar('mandarin'); }
+    })
+    .catch(() => {});
+}
+
+function manSaveWeeks() {
+  try { localStorage.setItem(MAN_WEEKS_KEY, JSON.stringify(manWeeks)); } catch {}
+}
+
+function manSaveProgress() {
+  try { localStorage.setItem(MAN_PROG_KEY, JSON.stringify({ checked: manChecked, weekIdx: manWeekIdx })); } catch {}
+}
+
+function manMergeWeeks(arr) {
+  for (const w of arr) {
+    const i = manWeeks.findIndex(x => x.week === w.week);
+    if (i >= 0) manWeeks[i] = w; else manWeeks.push(w);
+  }
+  manWeeks.sort((a, b) => a.week - b.week);
+  manSaveWeeks();
+}
+
+function manFlash(msg) {
+  clearTimeout(manToastTimer);
+  const el = document.getElementById('man-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  manToastTimer = setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+function manToggleTask(id) { manChecked[id] = !manChecked[id]; manSaveProgress(); renderMandarin(); }
+function manGoWeek(i)      { manWeekIdx = i; manSaveProgress(); renderMandarin(); if (currentView === 'mandarin') updateSwitcherBar('mandarin'); }
+function manSetTab(t)      { manTab = t; renderMandarin(); }
+function manToggleImport() { manShowImport = !manShowImport; renderMandarin(); }
+
+function manDoImport() {
+  const ta = document.getElementById('man-import-ta');
+  const text = ta ? ta.value : manImportText;
+  try {
+    const raw = JSON.parse(text.trim());
+    manMergeWeeks(Array.isArray(raw) ? raw : [raw]);
+    manImportText = "";
+    manShowImport = false;
+    renderMandarin();
+    manFlash("Imported successfully!");
+  } catch {
+    const errEl = document.getElementById('man-import-err');
+    if (errEl) errEl.textContent = "Invalid JSON — check the format and try again.";
+  }
+}
+
+function manHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      manMergeWeeks(Array.isArray(parsed) ? parsed : [parsed]);
+      manShowImport = false;
+      renderMandarin();
+      manFlash("File imported successfully!");
+    } catch {
+      const errEl = document.getElementById('man-import-err');
+      if (errEl) errEl.textContent = "Invalid JSON file.";
+    }
+  };
+  reader.readAsText(file);
+}
+
+function renderMandarin() {
+  const el = document.getElementById('view-mandarin');
+  if (!el) return;
+  const cw    = manWeeks[manWeekIdx] || null;
+  const tasks = cw?.tasks || [];
+  const done  = tasks.filter(t => manChecked[t.id]).length;
+  const pct   = tasks.length ? Math.round(done / tasks.length * 100) : 0;
+  const allDone = tasks.length > 0 && done === tasks.length;
+
+  const tabBtn = (id, label) => `<button onclick="manSetTab('${id}')" style="padding:6px 16px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid ${manTab===id?'#e0e0e0':'rgba(255,255,255,.1)'};background:${manTab===id?'#e0e0e0':'transparent'};color:${manTab===id?'#0a0a0f':'#888'};transition:all .2s">${label}</button>`;
+
+  let html = `<div style="display:flex;gap:6px;margin-bottom:1.5rem">${tabBtn('overview','Plan overview')}${tabBtn('tracker','Weekly tracker')}</div>`;
+
+  if (manTab === 'overview') {
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;background:rgba(255,255,255,.03);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.5rem;border:1px solid rgba(255,255,255,.06)">`;
+    for (const [l,v] of [["Goal","Business & career"],["Daily","15–30 min"],["Timeline","1–2 years"],["Target","HSK 4–5 / B1"],["Languages","EN + RU"]]) {
+      html += `<div><div style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">${l}</div><div style="font-size:13px;font-weight:500;color:#e0e0e0">${v}</div></div>`;
+    }
+    html += `</div>`;
+    for (const p of MAN_PHASES_OVERVIEW) {
+      html += `<div style="border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;background:${p.bg};color:${p.color}">${p.label}</span><span style="font-size:12px;color:#555">${p.months}</span></div><div style="font-size:14px;font-weight:500;margin-bottom:4px;color:#e0e0e0">${p.title}</div><div style="font-size:13px;color:#888;margin-bottom:10px">${p.desc}</div><div style="font-size:12px;color:#555;border-top:1px solid rgba(255,255,255,.06);padding-top:8px">🎯 ${p.milestone}</div></div>`;
+    }
+    html += `<div style="margin-top:1rem;padding:12px 16px;border-radius:8px;background:rgba(255,255,255,.03);font-size:13px;color:#888;line-height:1.6;border:1px solid rgba(255,255,255,.06)"><strong style="color:#e0e0e0;font-weight:500">Key habit:</strong> 15–30 min every day beats 3 hours once a week. Track each week in the Weekly tracker tab.</div>`;
+  } else {
+    // tracker tab
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><div style="font-size:14px;font-weight:500;color:#e0e0e0">${cw ? `Week ${cw.week}: ${esc(cw.title||'')}` : "No weeks loaded yet"}</div><button onclick="manToggleImport()" style="font-size:12px;padding:5px 14px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);background:transparent;color:#888">${manShowImport ? "✕ Close" : "+ Import weeks"}</button></div>`;
+
+    if (manShowImport) {
+      html += `<div style="margin-bottom:1rem;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem;background:rgba(255,255,255,.03)"><div style="font-size:13px;font-weight:500;margin-bottom:6px;color:#e0e0e0">Import weeks JSON</div><div style="font-size:12px;color:#555;margin-bottom:8px">Paste JSON or upload a .json file. One week or an array of weeks — existing weeks are updated in place. You can also commit weeks.json to the repo and it loads automatically.</div><textarea id="man-import-ta" class="man-import-area" placeholder='{"week":1,"title":"Pinyin Foundations","tasks":[...]}'>${esc(manImportText)}</textarea><div id="man-import-err" style="font-size:12px;color:#ff1744;margin-top:6px"></div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center"><button onclick="manDoImport()" style="padding:7px 20px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:none;background:#e0e0e0;color:#0a0a0f">Import JSON</button><label style="padding:7px 20px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);background:transparent;color:#888;white-space:nowrap">Upload file<input type="file" accept=".json" style="display:none" onchange="manHandleFile(this)"></label><button onclick="manToggleImport()" style="padding:7px 16px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);background:transparent;color:#888">Cancel</button></div></div>`;
+    }
+
+    if (manWeeks.length === 0) {
+      html += `<div style="text-align:center;padding:3rem 2rem;border:1px dashed rgba(255,255,255,.1);border-radius:12px"><div style="font-size:32px;margin-bottom:.75rem">📋</div><div style="font-size:14px;font-weight:500;margin-bottom:6px;color:#e0e0e0">No weeks loaded yet</div><div style="font-size:13px;color:#888;margin-bottom:1.5rem">Paste JSON, upload a file, or commit weeks.json to the repo — the app fetches it automatically.</div><button onclick="manToggleImport()" style="padding:8px 22px;font-size:13px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#e0e0e0">Import first week →</button></div>`;
+    } else {
+      // week pills
+      html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">`;
+      for (let i = 0; i < manWeeks.length; i++) {
+        const w = manWeeks[i];
+        const ph = manWeekPhase(w.week);
+        const wDone = w.tasks && w.tasks.length && w.tasks.every(t => manChecked[t.id]);
+        const isAct = i === manWeekIdx;
+        html += `<button onclick="manGoWeek(${i})" style="padding:4px 12px;font-size:12px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;background:${isAct?ph.bg:'transparent'};color:${isAct?ph.color:'#888'};border:1px solid ${isAct?ph.color:'rgba(255,255,255,.08)'};font-weight:${isAct?'500':'400'}">W${w.week}${wDone?' ✓':''}</button>`;
+      }
+      html += `</div>`;
+
+      if (cw) {
+        const ph = manWeekPhase(cw.week);
+        html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem;flex-wrap:wrap"><span style="font-size:11px;font-weight:500;padding:2px 10px;border-radius:20px;background:${ph.bg};color:${ph.color}">${ph.label}</span>${cw.subtitle?`<span style="font-size:12px;color:#555">${esc(cw.subtitle)}</span>`:''}</div>`;
+      }
+
+      html += `<div style="margin-bottom:1.25rem"><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;color:#888">Progress this week</span><span style="font-size:12px;font-weight:500;color:${allDone?'#00e676':'#e0e0e0'}">${done}/${tasks.length}${allDone?' — Complete! 🎉':''}</span></div><div style="height:4px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden"><div style="height:100%;border-radius:99px;width:${pct}%;transition:width .4s ease;background:${allDone?'#00e676':'#e0e0e0'}"></div></div></div>`;
+
+      if (tasks.length) {
+        html += `<div style="display:flex;flex-direction:column;gap:8px">`;
+        for (const task of tasks) {
+          const isDone = !!manChecked[task.id];
+          html += `<div data-task-id="${esc(task.id)}" style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:8px;cursor:pointer;user-select:none;-webkit-user-select:none;border:1px solid ${isDone?'rgba(255,255,255,.06)':'rgba(255,255,255,.1)'};background:${isDone?'rgba(255,255,255,.02)':'rgba(255,255,255,.04)'};transition:all .15s"><div style="width:18px;height:18px;border-radius:5px;flex-shrink:0;margin-top:2px;border:1.5px solid ${isDone?'#00e676':'rgba(255,255,255,.2)'};background:${isDone?'#00e676':'transparent'};display:flex;align-items:center;justify-content:center;transition:all .15s">${isDone?'<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">${task.day?`<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:rgba(255,255,255,.04);color:#555;border:1px solid rgba(255,255,255,.06);font-weight:500">${esc(task.day)}</span>`:''}${task.tool?`<span style="font-size:10px;padding:1px 7px;border-radius:8px;background:rgba(0,176,255,.1);color:#00b0ff">${esc(task.tool)}</span>`:''}<span style="font-size:13px;font-weight:500;text-decoration:${isDone?'line-through':'none'};color:${isDone?'#555':'#e0e0e0'};transition:all .15s">${esc(task.title||'')}</span></div>${task.desc?`<div style="font-size:12px;color:${isDone?'#444':'#888'};line-height:1.6">${esc(task.desc)}</div>`:''}</div></div>`;
+        }
+        html += `</div>`;
+      }
+
+      if (allDone && manWeekIdx < manWeeks.length - 1) {
+        html += `<div style="margin-top:1rem;padding:12px 16px;border-radius:8px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span style="font-size:13px;color:#00e676">Great work! Ready for Week ${manWeeks[manWeekIdx+1]?.week}?</span><button onclick="manGoWeek(${manWeekIdx+1})" style="font-size:12px;padding:5px 16px;border-radius:20px;cursor:pointer;font-family:'Outfit',sans-serif;border:none;background:#00e676;color:#0a0a0f">Start Week ${manWeeks[manWeekIdx+1]?.week} →</button></div>`;
+      }
+      if (allDone && manWeekIdx === manWeeks.length - 1) {
+        html += `<div style="margin-top:1rem;padding:12px 16px;border-radius:8px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.2);font-size:13px;color:#00e676">🎉 All loaded weeks complete! Import the next week's plan to continue.</div>`;
+      }
+    }
+  }
+
+  el.innerHTML = html;
 }
 
 // ── Init ──
 data = loadData();
 if (!data.activeId) data.activeId = data.trackers[0].id;
 saveData();
+loadHabits();
+loadMandarin();
 renderAll();
+
+// Delegated click handler for mandarin task items (avoids XSS from user-supplied task IDs in onclick)
+document.getElementById('view-mandarin').addEventListener('click', e => {
+  const el = e.target.closest('[data-task-id]');
+  if (el) manToggleTask(el.dataset.taskId);
+});
 
 // Register SW
 if ('serviceWorker' in navigator) {

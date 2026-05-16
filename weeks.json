@@ -1,0 +1,16 @@
+[
+  {
+    "week": 1,
+    "title": "Pinyin Foundations",
+    "subtitle": "Tones, pronunciation, and first 50 words",
+    "tasks": [
+      { "id": "w1-t1", "day": "Mon", "tool": "Pleco", "title": "Learn the 4 tones", "desc": "Use Pleco or YouTube to hear and repeat each tone. Practice: mā má mǎ mà." },
+      { "id": "w1-t2", "day": "Tue", "tool": "Pleco", "title": "Pinyin initials & finals", "desc": "Cover all initials (b p m f d t n l …) and finals (a o e i u ü …)." },
+      { "id": "w1-t3", "day": "Wed", "tool": "Anki", "title": "First 25 vocabulary words", "desc": "Numbers 1–10, greetings (nǐ hǎo, xièxiè, zàijiàn), yes/no, I/you/he." },
+      { "id": "w1-t4", "day": "Thu", "tool": "Anki", "title": "Next 25 vocabulary words", "desc": "Days of the week, colors, common verbs (shì, yǒu, qù, lái)." },
+      { "id": "w1-t5", "day": "Fri", "tool": "HelloChinese", "title": "HelloChinese lessons 1–3", "desc": "Complete the first three lessons in the app for guided tone drilling." },
+      { "id": "w1-t6", "day": "Sat", "tool": "YouTube", "title": "Watch a 15-min Mandarin tones video", "desc": "Yoyo Chinese or ChinesePod beginner episode. No subtitles for the last 5 min." },
+      { "id": "w1-t7", "day": "Sun", "tool": "Anki", "title": "Weekly review — all 50 words", "desc": "Run your Anki deck. Aim for >80% recall before moving to Week 2." }
+    ]
+  }
+]
